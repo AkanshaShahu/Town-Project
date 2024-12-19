@@ -16,8 +16,8 @@ except Exception as e:
     print(f"Error: {e}")
     exit()
 
-db = client["town"]
-resident_collection = db["residents"]
+db = client["Town"]
+resident_collection = db["Residents"]
 
 def hash_password(password):
     """Hashes the given password using bcrypt."""
