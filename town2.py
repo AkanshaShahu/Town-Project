@@ -5,7 +5,6 @@ from urllib.parse import quote_plus
 # Database connection setup
 username = quote_plus('AkanshaShahu')
 password = quote_plus('Shahu@20')
-
 try:
     client = MongoClient(f'mongodb+srv://{username}:{password}@cluster1.kwxj4.mongodb.net/town?retryWrites=true&w=majority')
     # Ping the database to check the connection
@@ -40,7 +39,8 @@ def register_resident(name, resident_id, password, role, status):
             "resident_id": resident_id,
             "password": hashed_password,
             "role": role,
-            "status": status
+            "status": status,
+            "doc_status": True  # Active by default
         }
 
         resident_collection.insert_one(resident_data)
@@ -80,13 +80,30 @@ def update_resident_details(resident_id, name=None, password=None, role=None, st
         return {"success": False, "message": f"Error occurred: {e}"}
 
 def view_residents():
-    """Fetches and returns all residents from the database."""
+    """Fetches and returns all active residents from the database."""
     try:
-        residents = list(resident_collection.find({}, {"_id": 0}))  # Exclude MongoDB '_id' field
+        residents = list(resident_collection.find({"doc_status": True}, {"_id": 0}))  # Exclude MongoDB '_id' field
         return residents
     except Exception as e:
         print(f"Error fetching residents: {e}")
         return []
+
+def soft_delete_resident(resident_id):
+    """Soft deletes a resident by setting doc_status to False."""
+    try:
+        # Find the resident by resident_id
+        existing_resident = resident_collection.find_one({"resident_id": resident_id})
+        if not existing_resident:
+            return {"success": False, "message": "Resident ID not found."}
+
+        # Update the doc_status to False
+        if existing_resident.get("doc_status"):
+            resident_collection.update_one({"resident_id": resident_id}, {"$set": {"doc_status": False}})
+            return {"success": True, "message": "Resident soft deleted successfully."}
+        else:
+            return {"success": False, "message": "Resident is already soft deleted."}
+    except Exception as e:
+        return {"success": False, "message": f"Error occurred: {e}"}
 
 if __name__ == "__main__":
     while True:
@@ -94,7 +111,8 @@ if __name__ == "__main__":
         print("1. Register Resident")
         print("2. View All Residents")
         print("3. Update Resident Details")
-        print("4. Exit")
+        print("4. Soft Delete Resident")
+        print("5. Exit")
         choice = input("Enter your choice: ")
 
         if choice == "1":
@@ -111,13 +129,13 @@ if __name__ == "__main__":
                 print(result["message"])
 
         elif choice == "2":
-            print("\nFetching all residents from MongoDB...")
+            print("\nFetching all active residents from MongoDB...")
             residents = view_residents()
             if residents:
                 for resident in residents:
                     print(resident)
             else:
-                print("No residents found in the database.")
+                print("No active residents found in the database.")
 
         elif choice == "3":
             resident_id = input("Enter the resident ID to update: ")
@@ -130,6 +148,11 @@ if __name__ == "__main__":
             print(result["message"])
 
         elif choice == "4":
+            resident_id = input("Enter the resident ID to soft delete: ")
+            result = soft_delete_resident(resident_id)
+            print(result["message"])
+
+        elif choice == "5":
             print("Exiting the system. Goodbye!")
             break
 
